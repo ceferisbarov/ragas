@@ -69,6 +69,19 @@ class TestDataset:
 
     test_data: t.List[DataRow]
 
+    def append_to_csv(self) -> pd.DataFrame:
+        data = self.test_data[-1]
+        data = {
+                "question": data.question,
+                "ground_truth_context": data.ground_truth_context,
+                "ground_truth": data.ground_truth,
+                "question_type": data.question_type,
+                "episode_done": data.episode_done,
+        }
+
+        df = pd.DataFrame.from_records([data])
+        df.to_csv("output.csv", mode="a")
+
     def to_pandas(self) -> pd.DataFrame:
         data_samples = []
         for data in self.test_data:
@@ -286,6 +299,7 @@ class TestsetGenerator:
         self,
         documents: t.List[LlamaindexDocument] | t.List[LangchainDocument],
         test_size: int,
+        max_attempts: int
     ) -> TestDataset:
         if not isinstance(documents[0], (LlamaindexDocument, LangchainDocument)):
             raise ValueError(
@@ -322,8 +336,10 @@ class TestsetGenerator:
         count = 0
         samples = []
 
+        attempts = 0
         pbar = tqdm(total=test_size)
-        while count < test_size and available_nodes != []:
+        while count < test_size and available_nodes != [] and attempts < max_attempts:
+            attempts += 1
             evolve_type = self._get_evolve_type()
             curr_node = self.rng.choice(np.array(available_nodes), size=1)[0]
             available_nodes = self._remove_nodes(available_nodes, [curr_node])
